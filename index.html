@@ -1,1 +1,76 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AETHERMOOR — Phase 3 Crafting Prototype</title>
+<link rel="stylesheet" href="style.css">
+<base target="_blank">
+</head>
+<body>
+<div id="game"></div>
+
+<!-- Overlays -->
+<div id="frost"></div>
+<div id="vignette"></div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="health-wrap"><div id="health-bar"></div><span id="health-text"></span></div>
+  <div id="stamina-wrap"><div id="stamina-bar"></div></div>
+  <div id="buffs"></div>
+  <div id="materials"></div>
+  <div id="wave-info">ENEMIES: <span id="enemy-count">0</span></div>
+  <div id="boss-wrap"><div id="boss-name">&#127807; BRAMBLE KING</div><div id="boss-bar"><div id="boss-fill"></div></div></div>
+  <div id="charge-ring"></div>
+  <div id="crosshair">+</div>
+  <div id="slots"></div>
+  <div id="hint-bar">1-5 abilities &middot; F gather/brew &middot; I bag &middot; Space broom &middot; hold LMB beam</div>
+</div>
+
+<div id="dmg-layer"></div>
+<div id="toast"></div>
+<div id="zone-banner"></div>
+
+<!-- Modal (brew / inventory / replace / confirm) -->
+<div id="modal"><div id="modal-box"></div></div>
+
+<!-- Mobile controls -->
+<div id="mobile-ui">
+  <div id="joystick"><div id="joystick-knob"></div></div>
+  <button class="mbtn" id="btn-cast">&#10022;</button>
+  <div id="abil-btns"></div>
+  <button class="mbtn small" id="btn-broom">&#129529;</button>
+  <button class="mbtn small" id="btn-bag">&#128188;</button>
+  <button class="mbtn small" id="btn-gather">&#9995;</button>
+  <button class="mbtn small" id="btn-brew">&#129516;</button>
+  <button class="mbtn small" id="btn-up">&#9650;</button>
+  <button class="mbtn small" id="btn-down">&#9660;</button>
+</div>
+
+<!-- Start overlay -->
+<div id="start-overlay">
+  <h1>AETHERMOOR</h1>
+  <p class="sub">Phase 4 — Enemy Archetypes &amp; the Bramble King</p>
+  <button id="play-btn">CLICK TO PLAY</button>
+  <p class="hint">
+    WASD move &middot; Mouse aim &middot; LMB cast (hold = beam)<br>
+    <b>1–5 = special ability slots</b> &middot; F = gather / brew at cauldron &middot; I = bag<br>
+    Find <b>recipe scrolls</b> glowing in the world &middot; brew at any cauldron<br>
+    <b>A great bramble stirs in Emberreach's western clearing…</b><br>
+    New ability potions are <b>drunk to equip</b> — full slots ask which to replace.<br>
+    Space = broom &middot; V = camera
+  </p>
+</div>
+
+<!-- Death overlay -->
+<div id="death-overlay">
+  <h1>YOU FELL</h1>
+  <button id="respawn-btn">RESPAWN</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="style.js"></script>
+</body>
+</html>
