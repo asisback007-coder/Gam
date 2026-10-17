@@ -93,6 +93,9 @@ function islandAt(x, z) {
 }
 
 function groundY(x, z) {
+  if (typeof player !== 'undefined' && player.position.y > 1900 && (x * x + z * z) <= 1600) {
+    return 2000;
+  }
   var isl = islandAt(x, z);
   if (!isl) return -999;
   var dx = x - isl.x, dz = z - isl.z;
@@ -1250,8 +1253,9 @@ window.addEventListener('mouseup', function (e) {
 
 window.addEventListener('mousemove', function (e) {
   if (document.pointerLockElement !== renderer.domElement || uiOpen) return;
-  playerState.yaw -= e.movementX * 0.0022;
-  pitch = Math.max(-1.2, Math.min(1.2, pitch - e.movementY * 0.0022));
+  var sens = (window.AM && window.AM.mouseSensitivity) ? window.AM.mouseSensitivity : 1;
+  playerState.yaw -= e.movementX * 0.0022 * sens;
+  pitch = Math.max(-1.2, Math.min(1.2, pitch - e.movementY * 0.0022 * sens));
 });
 
 // Touch detection & mobile controls
@@ -1667,7 +1671,7 @@ animate();
 
 /* ================= Phase 4 exposure hook ================= */
 window.AM = {
-  scene: scene, camera: camera, player: player, playerState: playerState,
+  scene: scene, camera: camera, renderer: renderer, player: player, playerState: playerState,
   ISLANDS: ISLANDS, ISLE: ISLE, groundY: groundY, islandAt: islandAt,
   materials: materials, potions: potions, slots: slots,
   RECIPES: RECIPES, RECIPE_BY_ID: RECIPE_BY_ID, NODE_BY_ID: NODE_BY_ID,
@@ -1694,4 +1698,317 @@ window.AM = {
     staffDmgMult = m.dmg; staffSpeedMult = m.speed; staffDefenseMult = m.def;
   }
 };
+})();
+
+(function(){
+  var AM = window.AM;
+  if(!AM){ console.error('Phase 5 requires window.AM from style.js'); return; }
+  var THREE = window.THREE;
+
+  /* ---------------- SETTINGS ---------------- */
+  var SETTINGS_KEY = 'aethermoor_settings_v1';
+  var settings = { volume: 70, sensitivity: 50, quality: 'MED' };
+  (function loadSettings(){
+    try{
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if(raw){ var s = JSON.parse(raw); for(var k in s){ settings[k]=s[k]; } }
+    }catch(e){}
+  })();
+  AM.mouseSensitivity = settings.sensitivity/50;
+  AM.masterVolume = settings.volume/100;
+
+  function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+
+  function applyQuality(q){
+    settings.quality = q;
+    try{
+      if(AM.renderer){
+        if(q==='LOW'){ AM.renderer.setPixelRatio(1); AM.renderer.shadowMap.enabled = false; }
+        else if(q==='MED'){ AM.renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio||1)); AM.renderer.shadowMap.enabled = true; }
+        else { AM.renderer.setPixelRatio(window.devicePixelRatio||1); AM.renderer.shadowMap.enabled = true; }
+      }
+    }catch(e){}
+  }
+  applyQuality(settings.quality);
+
+  function renderSettingsModal(){
+    var html = ''
+      + '<div class="shop-modal"><h2>⚙️ Settings</h2>'
+      + '<div class="upgrade-row"><label>Master Volume: <span id="set-vol-val">'+settings.volume+'</span>%</label>'
+      + '<input type="range" min="0" max="100" value="'+settings.volume+'" id="set-vol"></div>'
+      + '<div class="upgrade-row"><label>Mouse Sensitivity: <span id="set-sens-val">'+settings.sensitivity+'</span></label>'
+      + '<input type="range" min="10" max="150" value="'+settings.sensitivity+'" id="set-sens"></div>'
+      + '<div class="upgrade-row"><label>Graphics Quality <span id="set-quality-val">('+settings.quality+')</span></label>'
+      + '<button class="mbtn" onclick="Phase5.setQuality(\'LOW\')">LOW</button> '
+      + '<button class="mbtn" onclick="Phase5.setQuality(\'MED\')">MED</button> '
+      + '<button class="mbtn" onclick="Phase5.setQuality(\'HIGH\')">HIGH</button></div>'
+      + '<button class="mbtn" onclick="AM.closeModal()">Close</button></div>';
+    AM.openModal(html);
+    var v = document.getElementById('set-vol');
+    var s = document.getElementById('set-sens');
+    if(v) v.addEventListener('input', function(e){
+      settings.volume = parseInt(e.target.value,10);
+      document.getElementById('set-vol-val').textContent = settings.volume;
+      AM.masterVolume = settings.volume/100;
+      saveSettings();
+    });
+    if(s) s.addEventListener('input', function(e){
+      settings.sensitivity = parseInt(e.target.value,10);
+      document.getElementById('set-sens-val').textContent = settings.sensitivity;
+      AM.mouseSensitivity = settings.sensitivity/50;
+      saveSettings();
+    });
+  }
+
+  /* ---------------- COSMETICS ---------------- */
+  var COSMETICS = [
+    {id:'flame', name:'Flame Aura', price:120, color:0xff5522},
+    {id:'frost', name:'Frost Aura', price:120, color:0x66ddff},
+    {id:'venom', name:'Venom Aura', price:150, color:0x55ff66},
+    {id:'void',  name:'Void Aura',  price:300, color:0x9933ff},
+    {id:'gold',  name:'Golden Aura',price:500, color:0xffdd33}
+  ];
+  var COSMETIC_KEY = 'aethermoor_cosmetics_v1';
+  var cosmeticState = { owned:['none'], equipped:'none' };
+  (function loadCos(){
+    try{
+      var raw = localStorage.getItem(COSMETIC_KEY);
+      if(raw){ var s=JSON.parse(raw); for(var k in s){ cosmeticState[k]=s[k]; } }
+    }catch(e){}
+  })();
+  function saveCos(){ try{ localStorage.setItem(COSMETIC_KEY, JSON.stringify(cosmeticState)); }catch(e){} }
+
+  function findCosmetic(id){
+    for(var i=0;i<COSMETICS.length;i++){ if(COSMETICS[i].id===id) return COSMETICS[i]; }
+    return null;
+  }
+
+  function applyCosmetic(id){
+    cosmeticState.equipped = id;
+    var c = findCosmetic(id);
+    try{
+      if(c){
+        if(AM.tipGlow){
+          if(AM.tipGlow.color) AM.tipGlow.color.setHex(c.color);
+          if(AM.tipGlow.material && AM.tipGlow.material.color) AM.tipGlow.material.color.setHex(c.color);
+        }
+        if(AM.tipLight) AM.tipLight.color.setHex(c.color);
+      }
+    }catch(e){}
+    saveCos();
+  }
+  if(cosmeticState.equipped !== 'none') applyCosmetic(cosmeticState.equipped);
+
+  function hexStr(n){ return '#'+('000000'+n.toString(16)).slice(-6); }
+
+  function renderCosmeticsModal(){
+    var rows = COSMETICS.map(function(c){
+      var owned = cosmeticState.owned.indexOf(c.id)>=0;
+      var btn = owned
+        ? '<button class="mbtn" onclick="Phase5.equipCosmetic(\''+c.id+'\')">'+(cosmeticState.equipped===c.id?'EQUIPPED':'EQUIP')+'</button>'
+        : '<button class="mbtn" onclick="Phase5.buyCosmetic(\''+c.id+'\')">BUY ('+c.price+' 💰)</button>';
+      return '<div class="staff-card"><b style="color:'+hexStr(c.color)+'">'+c.name+'</b>'+btn+'</div>';
+    }).join('');
+    var html = '<div class="shop-modal"><h2>✨ Cosmetics</h2><div class="staff-grid">'
+      + '<div class="staff-card"><b>No Aura</b><button class="mbtn" onclick="Phase5.equipCosmetic(\'none\')">'+(cosmeticState.equipped==='none'?'EQUIPPED':'EQUIP')+'</button></div>'
+      + rows + '</div><button class="mbtn" onclick="AM.closeModal()">Close</button></div>';
+    AM.openModal(html);
+  }
+  function buyCosmetic(id){
+    var c = findCosmetic(id);
+    if(!c || cosmeticState.owned.indexOf(id)>=0) return;
+    if(!AM.spendGold(c.price)){ AM.showToast('Not enough gold'); return; }
+    cosmeticState.owned.push(id);
+    saveCos();
+    AM.showToast('Purchased '+c.name+'!');
+    renderCosmeticsModal();
+  }
+  function equipCosmetic(id){ applyCosmetic(id); renderCosmeticsModal(); }
+
+  /* ---------------- WAVE-SURVIVAL MODE ---------------- */
+  var waveActive = false, waveNum = 0, waveEnemies = [];
+  var arenaGroup = null, savedPos = null, bestWave = 0;
+  var WAVE_KEY = 'aethermoor_bestwave_v1';
+  try{ bestWave = parseInt(localStorage.getItem(WAVE_KEY)||'0',10) || 0; }catch(e){}
+
+  function buildArena(){
+    if(arenaGroup) return arenaGroup;
+    arenaGroup = new THREE.Group();
+    var floor = new THREE.Mesh(
+      new THREE.CylinderGeometry(40,40,2,32),
+      new THREE.MeshStandardMaterial({color:0x332244, emissive:0x110022})
+    );
+    floor.position.set(0,-1,0);
+    arenaGroup.add(floor);
+    var ring = new THREE.Mesh(
+      new THREE.TorusGeometry(40,0.6,8,48),
+      new THREE.MeshBasicMaterial({color:0x8855ff})
+    );
+    ring.rotation.x = Math.PI/2;
+    ring.position.y = 0.2;
+    arenaGroup.add(ring);
+    arenaGroup.position.set(0, 2000, 0);
+    AM.scene.add(arenaGroup);
+    return arenaGroup;
+  }
+
+  function spawnWaveEnemy(hp, speed){
+    var mesh = new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1.1, 0),
+      new THREE.MeshStandardMaterial({color:0xaa2244, emissive:0x440011})
+    );
+    var ang = Math.random()*Math.PI*2, r = 25+Math.random()*10;
+    mesh.position.set(
+      arenaGroup.position.x+Math.cos(ang)*r,
+      arenaGroup.position.y+1.5,
+      arenaGroup.position.z+Math.sin(ang)*r
+    );
+    AM.scene.add(mesh);
+    var en = {mesh:mesh, hp:hp, speed:speed, lastHit:0, alive:true};
+    waveEnemies.push(en);
+    return en;
+  }
+
+  function startWaveMode(){
+    if(waveActive) return;
+    waveActive = true;
+    waveNum = 0;
+    savedPos = AM.player.position.clone();
+    buildArena();
+    var hud = document.getElementById('wave-hud');
+    if(hud) hud.style.display='block';
+    AM.showToast('🌊 Wave Survival started!');
+    AM.player.position.set(arenaGroup.position.x, arenaGroup.position.y+1.6, arenaGroup.position.z);
+    nextWave();
+  }
+
+  function endWaveMode(){
+    waveActive = false;
+    waveEnemies.forEach(function(en){ AM.scene.remove(en.mesh); });
+    waveEnemies = [];
+    var hud = document.getElementById('wave-hud');
+    if(hud) hud.style.display='none';
+    var reached = waveNum>0 ? waveNum-1 : 0;
+    if(reached > bestWave){ bestWave = reached; try{ localStorage.setItem(WAVE_KEY, String(bestWave)); }catch(e){} }
+    if(savedPos) AM.player.position.copy(savedPos);
+    AM.showToast('Wave Survival ended — reached wave '+reached+'. Best: '+bestWave);
+  }
+
+  function nextWave(){
+    waveNum++;
+    var count = 3 + waveNum*2;
+    var hp = 20 + waveNum*8;
+    var speed = 2.2 + Math.min(waveNum*0.08, 2);
+    for(var i=0;i<count;i++){
+      (function(i){ setTimeout(function(){ if(waveActive) spawnWaveEnemy(hp, speed); updateWaveHUD(); }, i*350); })(i);
+    }
+    AM.showToast('Wave '+waveNum+' incoming!');
+    updateWaveHUD();
+  }
+
+  function updateWaveHUD(){
+    var n = document.getElementById('wave-number');
+    var e = document.getElementById('wave-enemies-left');
+    var b = document.getElementById('wave-best');
+    if(n) n.textContent = 'WAVE '+waveNum;
+    if(e) e.textContent = 'Enemies: '+waveEnemies.filter(function(x){return x.alive;}).length;
+    if(b) b.textContent = 'Best: '+bestWave;
+  }
+
+  function onWaveEnemyKilled(en){
+    en.alive = false;
+    AM.scene.remove(en.mesh);
+    var reward = 8 + waveNum*2;
+    AM.addGold(reward);
+    try{ AM.dmgNumber(en.mesh.position, '+'+reward+' 💰', 'gain'); }catch(e){}
+    updateWaveHUD();
+    var remain = waveEnemies.filter(function(x){return x.alive;}).length;
+    if(remain<=0 && waveActive){
+      setTimeout(function(){ if(waveActive) nextWave(); }, 2000);
+    }
+  }
+
+  var raycaster = new THREE.Raycaster();
+  function tryHitWaveEnemies(){
+    if(!waveActive) return;
+    var camPos = new THREE.Vector3(); AM.camera.getWorldPosition(camPos);
+    var camDir = new THREE.Vector3(); AM.camera.getWorldDirection(camDir);
+    raycaster.set(camPos, camDir);
+    var alive = waveEnemies.filter(function(x){return x.alive;});
+    var hits = raycaster.intersectObjects(alive.map(function(x){return x.mesh;}));
+    if(hits.length){
+      var mesh = hits[0].object;
+      var en = null;
+      for(var i=0;i<alive.length;i++){ if(alive[i].mesh===mesh){ en=alive[i]; break; } }
+      if(en){
+        var mult = 1;
+        try{ var sm = AM.getStaffMults(); if(sm && sm.dmg) mult = sm.dmg; }catch(e){}
+        var dmg = 14*mult;
+        en.hp -= dmg;
+        try{ AM.dmgNumber(en.mesh.position, Math.round(dmg), ''); }catch(e){}
+        if(en.hp<=0) onWaveEnemyKilled(en);
+      }
+    }
+  }
+  window.addEventListener('mousedown', function(e){ if(e.button===0) tryHitWaveEnemies(); });
+
+  function waveTick(){
+    requestAnimationFrame(waveTick);
+    if(!waveActive) return;
+    var now = performance.now();
+    waveEnemies.forEach(function(en){
+      if(!en.alive) return;
+      var dx = AM.player.position.x - en.mesh.position.x;
+      var dz = AM.player.position.z - en.mesh.position.z;
+      var dist = Math.sqrt(dx*dx+dz*dz);
+      if(dist>0.1){
+        en.mesh.position.x += (dx/dist) * en.speed * 0.016;
+        en.mesh.position.z += (dz/dist) * en.speed * 0.016;
+        en.mesh.lookAt(AM.player.position.x, en.mesh.position.y, AM.player.position.z);
+      }
+      if(dist < 2.2 && now-en.lastHit>900){
+        en.lastHit = now;
+        try{
+          if(AM.playerState && typeof AM.playerState.hp === 'number'){
+            AM.playerState.hp = Math.max(0, AM.playerState.hp - (6+waveNum));
+            if(AM.playerState.hp<=0) endWaveMode();
+          }
+        }catch(e){}
+      }
+    });
+  }
+  waveTick();
+
+  /* ---------------- WIRING ---------------- */
+  function toggleWave(){ waveActive ? endWaveMode() : startWaveMode(); }
+
+  var btnSettings = document.getElementById('btn-settings');
+  var btnCos = document.getElementById('btn-cosmetics');
+  var btnWave = document.getElementById('btn-wave');
+  if(btnSettings){ btnSettings.addEventListener('click', renderSettingsModal); btnSettings.addEventListener('touchstart', renderSettingsModal); }
+  if(btnCos){ btnCos.addEventListener('click', renderCosmeticsModal); btnCos.addEventListener('touchstart', renderCosmeticsModal); }
+  if(btnWave){ btnWave.addEventListener('click', toggleWave); btnWave.addEventListener('touchstart', toggleWave); }
+
+  document.addEventListener('keydown', function(e){
+    if(e.code==='KeyO') renderSettingsModal();
+    if(e.code==='KeyC') renderCosmeticsModal();
+    if(e.code==='KeyN') toggleWave();
+  });
+
+  window.Phase5 = {
+    setQuality: function(q){
+      applyQuality(q);
+      var el = document.getElementById('set-quality-val');
+      if(el) el.textContent = '('+q+')';
+      saveSettings();
+    },
+    buyCosmetic: buyCosmetic,
+    equipCosmetic: equipCosmetic,
+    openCosmetics: renderCosmeticsModal,
+    openSettings: renderSettingsModal,
+    startWave: startWaveMode,
+    endWave: endWaveMode
+  };
+
+  AM.showToast('✨ Phase 5 loaded — Settings (O), Cosmetics (C), Wave Survival (N)');
 })();
