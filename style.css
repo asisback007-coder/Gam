@@ -33,6 +33,32 @@ html,body { width:100%; height:100%; overflow:hidden; background:#060818;
   color:#9fb4ff; background:rgba(10,14,34,.6); padding:6px 12px; border-radius:8px;
   border:1px solid rgba(127,232,255,.25); }
 
+#currency { position:absolute; top:46px; right:18px; font-size:13px; font-weight:800;
+  color:#ffd76a; background:rgba(10,14,34,.7); padding:5px 12px; border-radius:8px;
+  border:1px solid rgba(255,215,106,.4); }
+#staff-info { position:absolute; top:76px; right:18px; font-size:11px; color:#9fb4ff;
+  background:rgba(10,14,34,.55); padding:4px 10px; border-radius:7px;
+  border:1px solid rgba(127,232,255,.2); }
+
+/* ---------- Phase 4: Merchant & Staff Shop ---------- */
+.staff-grid { display:flex; flex-direction:column; gap:8px; margin:10px 0; }
+.staff-card { display:flex; align-items:center; gap:12px; background:rgba(20,28,58,.65);
+  border:1px solid rgba(127,232,255,.22); border-radius:10px; padding:10px 14px; }
+.staff-card .sc-icon { font-size:26px; }
+.staff-card .sc-info { flex:1; }
+.staff-card .sc-name { font-size:13px; font-weight:800; }
+.staff-card .sc-stats { font-size:11px; color:#9fb4ff; margin-top:2px; }
+.staff-card .sc-price { font-size:12px; font-weight:800; color:#ffd76a; white-space:nowrap; }
+.rarity-common { color:#cfe0ff; }
+.rarity-rare { color:#7fe8ff; }
+.rarity-epic { color:#b27bff; }
+.rarity-legendary { color:#ffd76a; }
+.upgrade-row { display:flex; justify-content:space-between; align-items:center;
+  background:rgba(20,28,58,.6); border-radius:8px; padding:8px 12px; margin-bottom:6px; font-size:12px; }
+.upgrade-row .arrow { color:#8fa4d8; margin:0 6px; }
+.upgrade-row .better { color:#8affc9; }
+#btn-shop { left:22px; bottom:330px; display:none; }
+
 #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   font-size:22px; color:rgba(127,232,255,.9); text-shadow:0 0 6px #7fe8ff; }
 #charge-ring { position:absolute; left:50%; top:50%; width:52px; height:52px;
