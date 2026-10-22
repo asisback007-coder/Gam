@@ -92,6 +92,38 @@ html,body { width:100%; height:100%; overflow:hidden; background:#060818;
   margin-top: 4px;
 }
 
+/* ===== Phase 6: Loadouts, Mutators, Quests ===== */
+#wave-mutator{ font-size: 11px; color: #ffb347; margin-top: 2px; }
+
+.quest-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+.quest-row.done{ border-color: rgba(120,255,140,0.5); background: rgba(120,255,140,0.08); }
+.quest-title{ font-weight: bold; }
+.quest-desc{ font-size: 12px; opacity: 0.75; }
+.quest-progress{ font-size: 11px; opacity: 0.6; }
+
+.loadout-row{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+.loadout-slots-preview{ font-size: 13px; opacity: 0.8; }
+
+#btn-loadout { left:146px; bottom:190px; }
+#btn-quests { left:146px; bottom:260px; }
+
 #crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
   font-size:22px; color:rgba(127,232,255,.9); text-shadow:0 0 6px #7fe8ff; }
 #charge-ring { position:absolute; left:50%; top:50%; width:52px; height:52px;

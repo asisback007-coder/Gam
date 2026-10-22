@@ -1899,6 +1899,7 @@ window.AM = {
     var count = 3 + waveNum*2;
     var hp = 20 + waveNum*8;
     var speed = 2.2 + Math.min(waveNum*0.08, 2);
+    if(window.Phase6Mutators && window.Phase6Mutators.speed) speed = window.Phase6Mutators.speed(speed);
     for(var i=0;i<count;i++){
       (function(i){ setTimeout(function(){ if(waveActive) spawnWaveEnemy(hp, speed); updateWaveHUD(); }, i*350); })(i);
     }
@@ -1919,6 +1920,7 @@ window.AM = {
     en.alive = false;
     AM.scene.remove(en.mesh);
     var reward = 8 + waveNum*2;
+    if(window.Phase6Mutators && window.Phase6Mutators.gold) reward = Math.round(window.Phase6Mutators.gold(reward));
     AM.addGold(reward);
     try{ AM.dmgNumber(en.mesh.position, '+'+reward+' 💰', 'gain'); }catch(e){}
     updateWaveHUD();
@@ -1944,6 +1946,7 @@ window.AM = {
         var mult = 1;
         try{ var sm = AM.getStaffMults(); if(sm && sm.dmg) mult = sm.dmg; }catch(e){}
         var dmg = 14*mult;
+        if(window.Phase6Mutators && window.Phase6Mutators.dmg) dmg = window.Phase6Mutators.dmg(dmg);
         en.hp -= dmg;
         try{ AM.dmgNumber(en.mesh.position, Math.round(dmg), ''); }catch(e){}
         if(en.hp<=0) onWaveEnemyKilled(en);
@@ -1980,7 +1983,7 @@ window.AM = {
   waveTick();
 
   /* ---------------- WIRING ---------------- */
-  function toggleWave(){ waveActive ? endWaveMode() : startWaveMode(); }
+  function toggleWave(){ waveActive ? endWaveMode() : (window.Phase5 && window.Phase5.startWave ? window.Phase5.startWave() : startWaveMode()); }
 
   var btnSettings = document.getElementById('btn-settings');
   var btnCos = document.getElementById('btn-cosmetics');
