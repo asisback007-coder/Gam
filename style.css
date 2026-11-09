@@ -287,3 +287,19 @@ body.flying #btn-up, body.flying #btn-down { display:block; }
 #boss-bar { height:14px; background:rgba(10,14,30,.8); border:1px solid rgba(150,255,120,.6);
   border-radius:8px; overflow:hidden; }
 #boss-fill { height:100%; width:100%; background:linear-gradient(90deg,#5aff5a,#c9ffa8); transition:width .15s; }
+
+/* ===== Phase 7b: PvP Duels ===== */
+#duel-status{
+  position: fixed;
+  top: 128px;
+  right: 14px;
+  background: rgba(40,8,8,0.7);
+  border: 1px solid rgba(255,120,120,0.4);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: #ffd3d3;
+  z-index: 40;
+}
+#btn-pvp { left:146px; bottom:330px; }
+#btn-duelstats { left:208px; bottom:190px; }

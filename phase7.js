@@ -59,7 +59,7 @@
     var tag = makeNameTag(p.name || ('Player'+p.id));
     tag.position.set(0, 2.4, 0);
     mesh.add(tag);
-    otherPlayers[p.id] = { mesh: mesh, lastUpdate: performance.now() };
+    otherPlayers[p.id] = { mesh: mesh, lastUpdate: performance.now(), pvp: !!p.pvp, name: p.name || ('Player'+p.id), hp: typeof p.hp==='number'?p.hp:100 };
   }
 
   function removeOtherPlayer(id){
@@ -126,6 +126,7 @@
         removeOtherPlayer(data.id);
         setStatus('🟢 Connected (' + countOnline() + ' players)');
       }
+      if(window.Phase7Events) window.Phase7Events(data);
     };
   }
 
@@ -168,7 +169,11 @@
   window.Phase7 = {
     connect: connect,
     setName: function(n){ myName = n; sendUpdate(); },
-    status: function(){ return ws ? ws.readyState : -1; }
+    status: function(){ return ws ? ws.readyState : -1; },
+    send: function(obj){ if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); },
+    getOtherPlayers: function(){ return otherPlayers; },
+    getMyId: function(){ return myId; },
+    getMyName: function(){ return myName; }
   };
 
   // Ask for a name once, then auto-connect

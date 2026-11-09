@@ -52,7 +52,7 @@ function broadcast(data, exceptWs) {
 
 wss.on('connection', (ws) => {
   const id = nextId++;
-  players[id] = { id, x: 0, y: 0, z: 0, yaw: 0, name: 'Wanderer' + id, color: 0x8855ff, hp: 100 };
+  players[id] = { id, x: 0, y: 0, z: 0, yaw: 0, name: 'Wanderer' + id, color: 0x8855ff, hp: 100, pvp: false };
   ws.playerId = id;
 
   ws.send(JSON.stringify({ type: 'init', id, players }));
@@ -70,6 +70,21 @@ wss.on('connection', (ws) => {
       if (data.color) p.color = data.color;
       if (typeof data.hp === 'number') p.hp = data.hp;
       broadcast({ type: 'update', id: ws.playerId, x: p.x, y: p.y, z: p.z, yaw: p.yaw, hp: p.hp });
+    }
+
+    if (data.type === 'pvpToggle') {
+      const p = players[ws.playerId];
+      if (!p) return;
+      p.pvp = !!data.on;
+      broadcast({ type: 'pvpToggle', id: ws.playerId, on: p.pvp });
+    }
+
+    if (data.type === 'duelHit') {
+      broadcast({ type: 'duelHit', from: ws.playerId, targetId: data.targetId, dmg: data.dmg });
+    }
+
+    if (data.type === 'duelDefeat') {
+      broadcast({ type: 'duelDefeat', victim: data.victim, killer: data.killer });
     }
   });
 
