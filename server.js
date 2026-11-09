@@ -40,6 +40,60 @@ const wss = new WebSocket.Server({ server: httpServer });
 
 let players = {};
 let nextId = 1;
+let coopEnemies = {};
+let nextEnemyId = 1;
+let coopPlayers = new Set();
+const ARENA = { x: 0, y: 3000, z: 0 };
+const COOP_CAP = 10;
+
+function coopPlayerPositions() {
+  return Array.from(coopPlayers).map(id => players[id]).filter(p => p);
+}
+
+function spawnCoopEnemy() {
+  const ang = Math.random() * Math.PI * 2;
+  const r = 20 + Math.random() * 15;
+  const hp = 35 + Math.floor(Math.random() * 20);
+  const id = nextEnemyId++;
+  coopEnemies[id] = {
+    id,
+    x: ARENA.x + Math.cos(ang) * r,
+    y: ARENA.y + 1.5,
+    z: ARENA.z + Math.sin(ang) * r,
+    hp, maxHp: hp
+  };
+}
+
+setInterval(() => {
+  if (coopPlayers.size === 0) return;
+  if (Object.keys(coopEnemies).length >= COOP_CAP) return;
+  spawnCoopEnemy();
+}, 4000);
+
+setInterval(() => {
+  const targets = coopPlayerPositions();
+  if (targets.length === 0) return;
+  const speed = 2.4 * 0.15;
+  Object.values(coopEnemies).forEach(en => {
+    let nearest = null, nd = Infinity;
+    targets.forEach(p => {
+      const dx = p.x - en.x, dz = p.z - en.z;
+      const d = dx*dx + dz*dz;
+      if (d < nd) { nd = d; nearest = p; }
+    });
+    if (nearest) {
+      const dx = nearest.x - en.x, dz = nearest.z - en.z;
+      const dist = Math.sqrt(dx*dx + dz*dz);
+      if (dist > 0.1) {
+        en.x += (dx/dist) * speed;
+        en.z += (dz/dist) * speed;
+      }
+    }
+  });
+  if (Object.keys(coopEnemies).length > 0) {
+    broadcast({ type: 'coopUpdate', enemies: Object.values(coopEnemies) });
+  }
+}, 150);
 
 function broadcast(data, exceptWs) {
   const msg = JSON.stringify(data);
@@ -86,10 +140,31 @@ wss.on('connection', (ws) => {
     if (data.type === 'duelDefeat') {
       broadcast({ type: 'duelDefeat', victim: data.victim, killer: data.killer });
     }
+
+    if (data.type === 'coopJoin') {
+      coopPlayers.add(ws.playerId);
+      broadcast({ type: 'coopUpdate', enemies: Object.values(coopEnemies) });
+    }
+
+    if (data.type === 'coopLeave') {
+      coopPlayers.delete(ws.playerId);
+    }
+
+    if (data.type === 'coopHit') {
+      const en = coopEnemies[data.enemyId];
+      if (!en) return;
+      en.hp -= data.dmg;
+      if (en.hp <= 0) {
+        delete coopEnemies[data.enemyId];
+        const reward = 15 + Math.floor(en.maxHp / 5);
+        broadcast({ type: 'coopKill', enemyId: data.enemyId, killerId: ws.playerId, reward });
+      }
+    }
   });
 
   ws.on('close', () => {
     delete players[ws.playerId];
+    coopPlayers.delete(ws.playerId);
     broadcast({ type: 'leave', id: ws.playerId });
   });
 });

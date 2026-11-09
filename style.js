@@ -93,6 +93,9 @@ function islandAt(x, z) {
 }
 
 function groundY(x, z) {
+  if (typeof player !== 'undefined' && player.position.y > 2900 && (x * x + z * z) <= 1600) {
+    return 3000;
+  }
   if (typeof player !== 'undefined' && player.position.y > 1900 && (x * x + z * z) <= 1600) {
     return 2000;
   }
